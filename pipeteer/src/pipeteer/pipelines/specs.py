@@ -1,4 +1,5 @@
 from typing_extensions import TypeVar, Generic, Callable, Mapping
+from types import UnionType
 from dataclasses import dataclass
 
 A = TypeVar('A')
@@ -9,7 +10,7 @@ S2 = TypeVar('S2')
 @dataclass
 class Pipeline(Generic[A, B]):
   Tin: type[A]
-  Tout: type[B] | None = None
+  Tout: type[B] | UnionType | None = None
 
 @dataclass
 class Wrapped(Pipeline[S1, S2], Generic[S1, S2, A, B]):
@@ -24,14 +25,14 @@ class Wrapped(Pipeline[S1, S2], Generic[S1, S2, A, B]):
 
 @dataclass
 class Workflow(Pipeline[A, B], Generic[A, B]):
-  def __init__(self, Tin: type[A], Tout: type[B] | None = None, *, pipelines: Mapping[str, Pipeline]):
+  def __init__(self, Tin: type[A], Tout: type[B] | UnionType | None = None, *, pipelines: Mapping[str, Pipeline]):
     
-    input_tasks = [id for id, pipe in pipelines.items() if issubclass(pipe.Tin, Tin)]
-    if len(input_tasks) > 1:
-      raise ValueError(f'Workflow has multiple tasks with input type {Tin}: {input_tasks}')
-    if len(input_tasks) == 0:
-      raise ValueError(f'Workflow has no tasks with input type {Tin}')
-    self.input_task = input_tasks[0]
+    input_pipelines = [id for id, pipe in pipelines.items() if issubclass(pipe.Tin, Tin)]
+    if len(input_pipelines) > 1:
+      raise ValueError(f'Workflow has multiple pipelines with input type {Tin}: {input_pipelines}')
+    if len(input_pipelines) == 0:
+      raise ValueError(f'Workflow has no pipelines with input type {Tin}')
+    self.input_pipeline = input_pipelines[0]
     
     self.Tin = Tin
     self.Tout = Tout

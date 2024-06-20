@@ -179,7 +179,7 @@ api.mount('/validation', artifacts.validation_api)
 api.mount('/correction', artifacts.manual_api)
 
 procs = [
-  Process(target=uvicorn.run, args=(api, )),
+  Process(target=uvicorn.run, args=(api,)),
   Process(target=asyncio.run, args=(artifacts.auto_correct,))
 ]
 for proc in procs:

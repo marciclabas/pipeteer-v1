@@ -18,6 +18,9 @@ class QueueKV(Queue[A], Generic[A]):
     self._kv = kv
     self.poll_interval = poll_interval
 
+  def __repr__(self):
+    return f'QueueKV({self._kv!r})'
+
   @classmethod
   def of(cls, conn_str: str, type: type[A] | None = None) -> 'QueueKV[A]':
     """Create a `Queue` with a `KV` from a connection string. Supports:
