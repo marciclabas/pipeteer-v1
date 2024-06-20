@@ -1,4 +1,4 @@
-from typing_extensions import TypeVar, Generic, Callable, Mapping, Union, Any
+from typing_extensions import TypeVar, Generic, Callable, Awaitable, Mapping, Union, Any
 from types import UnionType
 from dataclasses import dataclass
 
@@ -16,7 +16,7 @@ class Pipeline(Generic[A, B]):
 class Wrapped(Pipeline[S1, S2], Generic[S1, S2, A, B]):
   def __init__(
     self, Tin: type[S1], pipeline: Pipeline[A, B],
-    pre: Callable[[S1], A], post: Callable[[S1, B], S2]
+    pre: Callable[[S1], Awaitable[A] | A], post: Callable[[S1, B], Awaitable[S2] | S2]
   ):
     self.Tin = Tin
     self.pipeline = pipeline

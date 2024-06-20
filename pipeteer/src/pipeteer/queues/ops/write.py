@@ -1,7 +1,7 @@
 from typing_extensions import TypeVar, Generic, Sequence, Callable, Awaitable
 from dataclasses import dataclass
 import asyncio
-from haskellian import Either, Left, Right, either as E
+from haskellian import Either, Left, Right, either as E, promise as P
 from pipeteer.queues import WriteQueue, QueueError, ReadQueue
 
 A = TypeVar('A')
@@ -34,7 +34,7 @@ class premerge(WriteQueue[B], Generic[B, S1, S2]):
   
   Qin: ReadQueue[S1]
   Qout: WriteQueue[S2]
-  merge: Callable[[S1, B], S2]
+  merge: Callable[[S1, B], Awaitable[S2] | S2]
 
   def __repr__(self):
     return f'premerge({repr(self.Qin)} -> {repr(self.Qout)})'
@@ -42,7 +42,7 @@ class premerge(WriteQueue[B], Generic[B, S1, S2]):
   @E.do[QueueError]()
   async def push(self, key: str, value: B): # type: ignore (python, bruh)
     state = (await self.Qin.read(key)).unsafe()
-    next = self.merge(state, value)
+    next = await P.wait(self.merge(state, value))
     (await self.Qout.push(key, next)).unsafe()
     (await self.Qin.pop(key)).unsafe()
 

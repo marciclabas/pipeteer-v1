@@ -1,5 +1,5 @@
 from typing import Protocol, Sequence, TypeVar, TypedDict, Generic, Mapping, Iterable
-from haskellian import iter as I
+from haskellian import iter as I, promise as P, funcs as F
 from pipeteer.queues import ReadQueue, WriteQueue, Queue, ops
 from pipeteer.pipelines import Pipeline, Wrapped, Workflow
 
@@ -21,7 +21,7 @@ def push_queue(pipeline: Pipeline[A, B], make_queue: MakeQueue, prefix: tuple[st
       case Wrapped() as wpd:
         Qwrapper = make_queue(prefix, wpd.Tin)
         Qpush = _push_queue(wpd.pipeline, prefix + ('wrapped',), Qout)
-        return ops.tee(Qwrapper, Qpush.premap(wpd.pre))
+        return ops.tee(Qwrapper, Qpush.apremap(F.flow(wpd.pre, P.wait)))
       
       case Pipeline() as pipe:
         return make_queue(prefix, pipe.Tin)
