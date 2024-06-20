@@ -9,6 +9,7 @@ B = TypeVar('B', covariant=True)
 
 class ReadQueue(ABC, Generic[A]):
   """A read/pop-only, point-readable queue"""
+
   @abstractmethod
   async def _read(self, id: str | None) -> Either[ReadError, tuple[str, A]]:
     ...

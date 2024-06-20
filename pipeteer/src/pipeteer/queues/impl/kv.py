@@ -19,7 +19,7 @@ class QueueKV(Queue[A], Generic[A]):
     self.poll_interval = poll_interval
 
   def __repr__(self):
-    return f'QueueKV({self._kv!r})'
+    return f'QueueKV({type(self._kv).__name__})'
 
   @classmethod
   def of(cls, conn_str: str, type: type[A] | None = None) -> 'QueueKV[A]':

@@ -29,11 +29,8 @@ auto = Wrapped(Input, Pipeline(bytes, bytes), pre=lambda inp: inp.img, post=post
 val = Wrapped(AutoCorrected, Pipeline(bytes, bool), pre=lambda inp: inp.corrected, post=post_validate)
 manual = Wrapped(ManualInput, Pipeline(bytes, bytes), pre=lambda inp: inp.img, post=post_manual)
 
-workflow = Workflow(
-  Input, Output,
-  pipelines={
-    'auto-correct': auto,
-    'validation': val,
-    'manual-correct': manual
-  },
-)
+workflow = Workflow({
+  'auto-correct': auto,
+  'validation': val,
+  'manual-correct': manual
+})

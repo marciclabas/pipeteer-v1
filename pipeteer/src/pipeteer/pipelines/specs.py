@@ -1,9 +1,9 @@
-from typing_extensions import TypeVar, Generic, Callable, Mapping
+from typing_extensions import TypeVar, Generic, Callable, Mapping, Union, Any
 from types import UnionType
 from dataclasses import dataclass
 
-A = TypeVar('A')
-B = TypeVar('B')
+A = TypeVar('A', covariant=True)
+B = TypeVar('B', covariant=True)
 S1 = TypeVar('S1')
 S2 = TypeVar('S2')
 
@@ -25,17 +25,9 @@ class Wrapped(Pipeline[S1, S2], Generic[S1, S2, A, B]):
 
 @dataclass
 class Workflow(Pipeline[A, B], Generic[A, B]):
-  def __init__(self, Tin: type[A], Tout: type[B] | UnionType | None = None, *, pipelines: Mapping[str, Pipeline]):
-    
-    input_pipelines = [id for id, pipe in pipelines.items() if issubclass(pipe.Tin, Tin)]
-    if len(input_pipelines) > 1:
-      raise ValueError(f'Workflow has multiple pipelines with input type {Tin}: {input_pipelines}')
-    if len(input_pipelines) == 0:
-      raise ValueError(f'Workflow has no pipelines with input type {Tin}')
-    self.input_pipeline = input_pipelines[0]
-    
-    self.Tin = Tin
-    self.Tout = Tout
+  
+  def __init__(self, pipelines: Mapping[str, Pipeline[A, Any]]):
+    self.Tin = Union[*(pipe.Tin for pipe in pipelines.values())] # type: ignore
     self.pipelines = pipelines
 
   def __repr__(self):

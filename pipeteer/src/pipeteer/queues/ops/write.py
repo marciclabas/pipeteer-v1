@@ -1,7 +1,7 @@
 from typing_extensions import TypeVar, Generic, Sequence, Callable, Awaitable
 from dataclasses import dataclass
 import asyncio
-from haskellian import Either, Right, either as E
+from haskellian import Either, Left, Right, either as E
 from pipeteer.queues import WriteQueue, QueueError, ReadQueue
 
 A = TypeVar('A')
@@ -13,8 +13,8 @@ S2 = TypeVar('S2')
 class prejoin(WriteQueue[A], Generic[A]):
   """Pre-join queues based on the pushed value type."""
 
-  fallback: WriteQueue[A]
   outputs: Sequence[tuple[WriteQueue[A], type[A]]]
+  fallback: WriteQueue[A] | None = None
 
   def __repr__(self):
     reprs = ', '.join(repr(q) for q, _ in self.outputs)
@@ -24,7 +24,8 @@ class prejoin(WriteQueue[A], Generic[A]):
     for q, t in self.outputs:
       if isinstance(value, t):
         return await q.push(key, value)
-    
+    if not self.fallback:
+      return Left(QueueError(f'Received value with type {type(value)}, which doesn\'t match any of the available types. Value: {value}'))
     return await self.fallback.push(key, value)
 
 @dataclass
@@ -67,7 +68,9 @@ class prefilter(WriteQueue[A], Generic[A]):
   def __init__(self, q: WriteQueue[A], p: Callable[[tuple[str, A]], Awaitable[bool]]):
     self._wrapped = q
     self._predicate = p
-    __name__ = f'Filtered{repr(self)}'
+
+  def __repr__(self):
+    return f'prefilter({self._wrapped!r})'
 
   async def push(self, key: str, value: A) -> Either[QueueError, None]:
     if await self._predicate((key, value)):
@@ -80,7 +83,9 @@ class premap(WriteQueue[B], Generic[A, B]):
   def __init__(self, q: WriteQueue[A], f: Callable[[tuple[str, B]], Awaitable[tuple[str, A]]]):
     self._wrapped = q
     self._mapper = f
-    __name__ = f'Mapped{repr(self)}'
+
+  def __repr__(self):
+    return f'premap({self._wrapped!r})'
 
   async def push(self, key: str, value: B):
     k, v = await self._mapper((key, value))

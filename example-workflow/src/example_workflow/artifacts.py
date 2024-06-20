@@ -14,7 +14,7 @@ class Artifacts:
   @staticmethod
   def of(queues: Mapping[str, PipelineQueues], *, logger: Logger = Logger.click()):
     return Artifacts(
-      validation_api=validation_api(**queues['validation']['internal'], logger=logger.prefix('[VALIDATION]')),
-      manual_api=manual_api(**queues['manual-correct']['internal'], logger=logger.prefix('[MANUAL CORRECTION]')),
-      auto_correct=autocorrection(**queues['auto-correct']['internal'], logger=logger.prefix('[AUTO CORRECTION]')),
+      validation_api=validation_api(**queues['validation'], logger=logger.prefix('[VALIDATION]')),
+      manual_api=manual_api(**queues['manual-correct'], logger=logger.prefix('[MANUAL CORRECTION]')),
+      auto_correct=autocorrection(**queues['auto-correct'], logger=logger.prefix('[AUTO CORRECTION]')),
     )
