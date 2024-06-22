@@ -1,5 +1,8 @@
+from typing import TypedDict, Any, Callable, Coroutine
 from dataclasses import dataclass
-from pipeteer import Pipeline, Wrapped, Workflow
+from fastapi import FastAPI
+from pipeteer import Pipeline, Wrapped, Task, Workflow
+from .pipelines import auto, Validation, ManualCorrection, LoggedAPI, Logger
 
 @dataclass
 class Input: # initial state, input to auto-correction
@@ -16,21 +19,72 @@ class Output:
   img: bytes
   corrected: bytes
 
-def post_auto(inp: Input, out: bytes | None):
-  return AutoCorrected(inp.img, out) if out else ManualInput(inp.img)
+class Queues(TypedDict):
+  auto: Wrapped.Queues
+  validation: Wrapped.Queues
+  manual: Wrapped.Queues
 
-def post_validate(inp: AutoCorrected, ok: bool):
-  return Output(inp.img, inp.corrected) if ok else ManualInput(inp.img)
+class WrappedAuto(Wrapped[Input, Any, bytes, bytes|None, Task.Queues, Callable[[Logger], Coroutine]]):
+  def __init__(self):
+    super().__init__(Input, auto)
+  def pre(self, inp: Input):
+    return inp.img
+  def post(self, inp: Input, out: bytes | None):
+    return AutoCorrected(inp.img, out) if out else ManualInput(inp.img)
+  
+class WrappedValidation(Wrapped[AutoCorrected, Any, bytes, bool, Validation.Queues, Validation.Artifacts]):
+  def __init__(self):
+    super().__init__(AutoCorrected, Validation())
+  def pre(self, inp: AutoCorrected):
+    return inp.corrected
+  def post(self, inp: AutoCorrected, ok: bool):
+    return Output(inp.img, inp.corrected) if ok else ManualInput(inp.img)
+  
+class WrappedManual(Wrapped[ManualInput, Any, bytes, bytes, ManualCorrection.Queues, ManualCorrection.Artifacts]):
+  def __init__(self):
+    super().__init__(ManualInput, ManualCorrection())
+  def pre(self, inp: ManualInput):
+    return inp.img
+  def post(self, inp: ManualInput, out: bytes):
+    return Output(inp.img, out)
+  
+class Pipelines(TypedDict):
+  auto: WrappedAuto
+  validation: WrappedValidation
+  manual: WrappedManual
 
-def post_manual(inp: ManualInput, out: bytes):
-  return Output(inp.img, out)
+@dataclass
+class Artifacts:
+  coro: Callable[[], Coroutine]
+  api: FastAPI
 
-auto = Wrapped(Input, Pipeline(bytes, bytes), pre=lambda inp: inp.img, post=post_auto)
-val = Wrapped(AutoCorrected, Pipeline(bytes, bool), pre=lambda inp: inp.corrected, post=post_validate)
-manual = Wrapped(ManualInput, Pipeline(bytes, bytes), pre=lambda inp: inp.img, post=post_manual)
+class MyWorkflow(Workflow[Input, Output, Pipelines, Queues, Callable[[Logger], Artifacts]]): # type: ignore
+  Queues = Queues
+  Artifacts = Callable[[Logger], Artifacts]
+  Pipelines = Pipelines
 
-workflow = Workflow({
-  'auto-correct': auto,
-  'validation': val,
-  'manual-correct': manual
+  def __init__(self):
+    super().__init__(Pipelines(
+      auto=WrappedAuto(),
+      validation=WrappedValidation(),
+      manual=WrappedManual(),
+    ))
+
+  def run(self, queues: Queues) -> Artifacts:
+    def bound(logger: Logger):
+      coro = self.pipelines['auto'].run(queues['auto'])
+      val_api = self.pipelines['validation'].run(queues['validation'])
+      manual_api = self.pipelines['manual'].run(queues['manual'])
+      api = FastAPI()
+      api.mount('/validation', val_api(logger))
+      api.mount('/manual', manual_api(logger))
+      return Artifacts(coro=lambda: coro(logger), api=api)
+
+    return bound
+  
+
+Workflow.dict({
+  'auto': WrappedAuto(),
+  'validation': WrappedValidation(),
+  'manual': WrappedManual(),
 })
