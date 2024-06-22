@@ -1,8 +1,9 @@
 from .queues import ReadQueue, WriteQueue, Queue, SimpleQueue, QueueKV
-from .pipelines import Pipeline, Wrapped, Workflow, Task
-from . import trees
+from .pipelines import Pipeline, Wrapped, Workflow, Task, GetQueue
+from . import trees, http
 
 __all__ = [
   'ReadQueue', 'WriteQueue', 'Queue', 'SimpleQueue', 'QueueKV',
-  'Pipeline', 'Wrapped', 'Workflow', 'Task', 'trees'
+  'Pipeline', 'Wrapped', 'Workflow', 'Task', 'GetQueue',
+  'trees', 'http',
 ]

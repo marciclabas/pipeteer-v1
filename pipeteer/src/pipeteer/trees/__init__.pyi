@@ -1,5 +1,5 @@
-from .trees import Tree, flatten
+from .trees import Tree, flatten, map, path_map
 
 __all__ = [
-  'Tree', 'flatten',
+  'Tree', 'flatten', 'map', 'path_map',
 ]

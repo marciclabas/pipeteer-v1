@@ -2,7 +2,6 @@ from typing import TypeVar, Sequence, Callable, overload
 from haskellian import Either, Left
 from pipeteer.queues import ReadQueue, ReadError, InexistentItem
 from fastapi import FastAPI, Response
-from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter
 
 T = TypeVar('T')

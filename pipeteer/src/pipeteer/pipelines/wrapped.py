@@ -3,8 +3,8 @@ from types import UnionType
 from dataclasses import dataclass
 from abc import abstractmethod
 from haskellian import funcs as F, promise as P
-from pipeteer.queues import ReadQueue, WriteQueue, Queue, ops
-from .pipeline import Pipeline, GetQueue, Tree
+from pipeteer.queues import WriteQueue, Queue, ops
+from pipeteer import Pipeline, GetQueue, trees
 
 A = TypeVar('A')
 B = TypeVar('B')
@@ -37,6 +37,13 @@ class Wrapped(Pipeline[S1, S2, WrappedQueues[S1, Q], T], Generic[S1, S2, A, B, Q
     self.Tout = Tout
     self.pipeline = pipeline
 
+  def __repr__(self):
+    from .reprs import str_types, indent
+    inner = repr(self.pipeline)
+    if len(inner) > 60:
+      inner = '\n' + indent(inner) + '\n'
+    return f'Wrapped[{str_types(self)}]({inner})'
+
   @staticmethod
   def of(
     Tin: type[S3], pipeline: Pipeline[C, D, Q2, T2],
@@ -64,8 +71,8 @@ class Wrapped(Pipeline[S1, S2, WrappedQueues[S1, Q], T], Generic[S1, S2, A, B, Q
     wrapped = self.pipeline.connect(wrapped_Qout, get_queue, prefix + ('wrapped',))
     return WrappedQueues(Qwrapped=Qwrapper, wrapped=wrapped)
   
-  def observe(self, get_queue: GetQueue, prefix: tuple[str, ...] = ()) -> Tree[ReadQueue]:
-    return { 'Qwrapped': get_queue(prefix, self.Tin), 'wrapped': self.pipeline.observe(get_queue, prefix + ('wrapped',)) }
+  def tree(self) -> trees.Tree[Pipeline]:
+    return { 'Qwrapped': self, 'wrapped': self.pipeline.tree() }
   
   def run(self, queues: WrappedQueues[S1, Q], /) -> T:
     return self.pipeline.run(queues['wrapped'])

@@ -1,9 +1,8 @@
-from typing import TypeVar, Generic, Protocol, Mapping, Sequence, Callable, Awaitable
+from typing import TypeVar, Generic, Protocol, Mapping, Sequence
 from types import UnionType
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from pipeteer.queues import WriteQueue, ReadQueue, Queue
-from pipeteer.trees import Tree
+from pipeteer import WriteQueue, ReadQueue, Queue, trees
 
 A = TypeVar('A', covariant=True)
 B = TypeVar('B', covariant=True)
@@ -26,7 +25,8 @@ class Pipeline(ABC, Generic[A, B, Q, T]):
   Tout: type[B] | UnionType | None
 
   def __repr__(self):
-    return f'Pipeline({self.Tin.__name__} -> {self.Tout and repr(self.Tout) or "???"})'
+    from .reprs import str_types
+    return f'Pipeline[{str_types(self)}]'
 
   @abstractmethod
   def push_queue(self, get_queue: GetQueue, prefix: tuple[str, ...] = (), Qout: WriteQueue[B] | None = None) -> WriteQueue[A]:
@@ -37,8 +37,12 @@ class Pipeline(ABC, Generic[A, B, Q, T]):
     """Tree of nested connected queues (connected internally and with the provided output queue `Qout`)"""
 
   @abstractmethod
-  def observe(self, get_queue: GetQueue, prefix: tuple[str, ...] = ()) -> Tree[ReadQueue]:
-    """Tree of all nested read queues"""
+  def tree(self) -> trees.Tree['Pipeline']:
+    """Tree of nested pipelines"""
+
+  def observe(self, get_queue: GetQueue, prefix: tuple[str, ...] = ()) -> trees.Tree[ReadQueue]:
+    """Tree of nested read queues"""
+    return trees.path_map(self.tree(), lambda path, pipe: get_queue(prefix + tuple(path), pipe.Tin))
 
   @abstractmethod
   def run(self, queues: Q, /) -> T:
