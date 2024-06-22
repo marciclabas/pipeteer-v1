@@ -61,18 +61,18 @@ class Wrapped(Pipeline[S1, S2, WrappedQueues[S1, Q], T], Generic[S1, S2, A, B, Q
     ...
 
   def push_queue(self, get_queue: GetQueue, prefix: tuple[str, ...] = (), Qout: WriteQueue[S2] | None = None) -> WriteQueue[S1]:
-    Qwrapper = get_queue(prefix, self.Tin)
+    Qwrapper = get_queue(prefix + ('wrapper',), self.Tin)
     Qpush = self.pipeline.push_queue(get_queue, prefix + ('wrapped',), Qout)
     return ops.tee(Qwrapper, Qpush.apremap(F.flow(self.pre, P.wait)))
   
   def connect(self, Qout: WriteQueue[S2], get_queue: GetQueue, prefix: tuple[str, ...] = ()) -> WrappedQueues[S1, Q]:
-    Qwrapper = get_queue(prefix, self.Tin)
+    Qwrapper = get_queue(prefix + ('wrapper',), self.Tin)
     wrapped_Qout = ops.premerge(Qwrapper, Qout, self.post)
     wrapped = self.pipeline.connect(wrapped_Qout, get_queue, prefix + ('wrapped',))
     return WrappedQueues(Qwrapped=Qwrapper, wrapped=wrapped)
   
   def tree(self) -> trees.Tree[Pipeline]:
-    return { 'Qwrapped': self, 'wrapped': self.pipeline.tree() }
+    return { 'wrapper': self, 'wrapped': self.pipeline.tree() }
   
   def run(self, queues: WrappedQueues[S1, Q], /) -> T:
     return self.pipeline.run(queues['wrapped'])

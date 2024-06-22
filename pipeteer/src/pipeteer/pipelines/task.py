@@ -26,10 +26,10 @@ class Task(Pipeline[A, B, TaskQueues[A, B], T], Generic[A, B, T]):
     return f'Task[{str_types(self)}]'
 
   def push_queue(self, get_queue: GetQueue, prefix: tuple[str, ...] = (), Qout: WriteQueue[B] | None = None) -> WriteQueue[A]:
-    return get_queue(prefix + ('Qin',), self.Tin)
+    return get_queue(prefix, self.Tin)
   
   def connect(self, Qout: WriteQueue[B], get_queue: GetQueue, prefix: tuple[str, ...] = ()):
-    Qin = get_queue(prefix + ('Qin',), self.Tin)
+    Qin = get_queue(prefix, self.Tin)
     return TaskQueues(Qin=Qin, Qout=Qout)
 
   def tree(self) -> trees.Tree[Pipeline]:
