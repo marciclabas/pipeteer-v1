@@ -1,4 +1,4 @@
-from typing_extensions import TypeVar, Generic, Sequence, Callable, Awaitable
+from typing_extensions import TypeVar, Generic, Sequence, Callable, Awaitable, Any
 from dataclasses import dataclass
 import asyncio
 from haskellian import Either, Left, Right, either as E, promise as P
@@ -80,13 +80,14 @@ class prefilter(WriteQueue[A], Generic[A]):
 
 class premap(WriteQueue[B], Generic[A, B]):
   
-  def __init__(self, q: WriteQueue[A], f: Callable[[tuple[str, B]], Awaitable[tuple[str, A]]]):
+  def __init__(self, q: WriteQueue[A], f: Callable[[tuple[str, B]], Awaitable[Either[Any, tuple[str, A]]]]):
     self._wrapped = q
     self._mapper = f
 
   def __repr__(self):
     return f'premap({self._wrapped!r})'
 
+  @E.do()
   async def push(self, key: str, value: B):
-    k, v = await self._mapper((key, value))
-    return await self._wrapped.push(k, v)
+    k, v = (await self._mapper((key, value))).unsafe()
+    return (await self._wrapped.push(k, v)).unsafe()

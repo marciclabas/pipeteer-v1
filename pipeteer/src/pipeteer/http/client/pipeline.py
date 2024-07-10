@@ -21,7 +21,7 @@ def queue_clients(pipe: Pipeline, base_url: str, *, request: Request = request):
   get_client = lambda path, _: http.ReadClient.validated(Any, base_url + '/'.join(path) + '/read', request=request)
   return trees.path_map(pipe.tree(), get_client)
 
-def clients(pipe: Pipeline[A, B, Any, Any], base_url: str, *, request: Request = request):
+def clients(pipe: Pipeline[A, B, Any, Any, Any], base_url: str, *, request: Request = request):
   """Clients for a pipeline's queues, as exposed by `http.mount`"""
   Qin = input_client(pipe, base_url, request=request)
   Qout = output_client(pipe, base_url, request=request)

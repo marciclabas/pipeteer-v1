@@ -1,5 +1,5 @@
-from typing_extensions import Generic, TypeVar, Callable, Awaitable, AsyncIterable, TypeGuard, overload
-from haskellian import promise as P, Either
+from typing_extensions import Generic, TypeVar, Callable, Awaitable, AsyncIterable, TypeGuard, overload, Any
+from haskellian import promise as P, Either, Right, either as E
 from abc import ABC, abstractmethod
 from .errors import QueueError
 from . import ops
@@ -31,40 +31,60 @@ class WriteQueue(ABC, Generic[A]):
     return ops.prefilter(self, lambda kv: P.of(pred(kv[1])))
   
   def premap(self, f: Callable[[B], A]) -> 'WriteQueue[B]':
-    return ops.premap(self, lambda kv: P.of((kv[0], f(kv[1]))))
+    return ops.premap(self, lambda kv: P.of(Right((kv[0], f(kv[1])))))
   
   def premap_kv(self, f: Callable[[str, B], A]) -> 'WriteQueue[B]':
     """Map but `f` receives both key and value"""
-    return ops.premap(self, lambda kv: P.of((kv[0], f(*kv))))
+    @E.do()
+    async def mapper(kv: tuple[str, B]):
+      return kv[0], f(*kv)
+    return ops.premap(self, mapper)
   
   def premap_k(self, f: Callable[[str], A]) -> 'WriteQueue':
     """Map but `f` receives the key"""
-    return ops.premap(self, lambda kv: P.of((kv[0], f(kv[0]))))
+    @E.do()
+    async def mapper(kv: tuple[str, B]):
+      return kv[0], f(kv[1])
+    return ops.premap(self, mapper)
   
   def premap_kvt(self, f: Callable[[tuple[str, B]], A]) -> 'WriteQueue[B]':
     """Map but `f` receives both key and value as a tuple"""
-    return ops.premap(self, lambda kv: P.of((kv[0], f(kv))))
+    @E.do()
+    async def mapper(kv: tuple[str, B]):
+      return kv[0], f(kv)
+    return ops.premap(self, mapper)
   
   def apremap(self, f: Callable[[B], Awaitable[A]]) -> 'WriteQueue[B]':
     """Map but `f` is asynchronous"""
+    @E.do()
     async def mapper(kv: tuple[str, B]):
       return kv[0], await f(kv[1])
     return ops.premap(self, mapper)
   
+  def safe_apremap(self, f: Callable[[B], Awaitable[Either[Any, A]]]) -> 'WriteQueue[B]':
+    """Map but `f` is asynchronous and can fail (ie. return `Left`)"""
+    @E.do()
+    async def mapper(kv: tuple[str, B]):
+      return kv[0], (await f(kv[1])).unsafe()
+    return ops.premap(self, mapper)
+  
   def apremap_kv(self, f: Callable[[str, B], Awaitable[A]]) -> 'WriteQueue[B]':
     """Map but `f` is asynchronous and receives both key and value"""
+    @E.do()
     async def mapper(kv: tuple[str, B]):
       return kv[0], await f(*kv)
     return ops.premap(self, mapper)
   
   def apremap_k(self, f: Callable[[str], Awaitable[A]]) -> 'WriteQueue':
     """Map but `f` is asynchronous and receives the key"""
+    @E.do()
     async def mapper(kv: tuple[str, B]):
       return kv[0], await f(kv[0])
     return ops.premap(self, mapper)
   
   def apremap_kvt(self, f: Callable[[tuple[str, B]], Awaitable[A]]) -> 'WriteQueue[B]':
     """Map but `f` is asynchronous and receives both key and value as a tuple"""
+    @E.do()
     async def mapper(kv: tuple[str, B]):
       return kv[0], await f(kv)
     return ops.premap(self, mapper)
